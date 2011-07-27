@@ -453,15 +453,11 @@ void entryImage(const char *name)
 void setup()
 {
 
-
-	YM2149REG(0x05) = 0x05;
-	YM2149REG(0x07) = 0x3B;
-	YM2149REG(0x0A) = 0x0f;
-
 	pinMode(AUDIOPIN,OUTPUT);
 	digitalWrite(AUDIOPIN,HIGH);
 	outputPinForFunction(AUDIOPIN, 14);
 	pinModePPS(AUDIOPIN, HIGH);
+
 #ifdef AUDIOPINEXTRA
 	pinMode(AUDIOPINEXTRA,OUTPUT);
 	outputPinForFunction(AUDIOPINEXTRA, 14);
