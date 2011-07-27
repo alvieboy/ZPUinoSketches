@@ -36,34 +36,46 @@ SmallFSFile pokeyaudiofile;
 
 
 
-static int px = -1;
-static int py = 0;
+static int px = -1; /* Piece current X position */
+static int py = 0; /* Piece current Y position */
 static int tick = 0;
 static int tickmax = 10;
-unsigned score=0;
-unsigned level=0;
-unsigned lines=0;
-unsigned currentlevel_lines=0;
+unsigned score=0; /* Our score */
+unsigned level=0; /* Current level */
+unsigned lines=0; /* Number of lines made (all levels) */
+unsigned currentlevel_lines=0; /* This level number of lines made */
 unsigned lines_total=0;
 
 unsigned char lval[4],cval[4];
 
+/* This will hold the current game area */
 unsigned char area[blocks_x][blocks_y];
 
+/* This is used to save background image on the nextpiece area */
 unsigned char nextpiecearea[piecesize_max * blocksize * piecesize_max * blocksize];
 
+/* Current piece falling */
 static struct piece currentpiece;
+
+/* Next piece */
 static struct piece nextpiece;
 
+/* Whether the current piece is valid, or if we need to allocate a new one */
 static bool currentpiecevalid=false;
+
+/* Colors for current and next piece */
 static color_type *currentcolor, *nextcolor;
 
 const int OPERATION_CLEAR=0;
 const int OPERATION_DRAW=1;
 
+/* The score area definition */
+
 #define SCORECHARS 6
 #define SCOREX 90
 #define SCOREY 40
+
+/* The score area. We use this to save the BG image */
 
 unsigned char scorearea[ 9 * ((8* SCORECHARS)+1) ];
 
@@ -417,6 +429,27 @@ void clear_area()
 	memset(&area,sizeof(area),0);
 }
 
+void blitImage(const char *name)
+{
+	VGA.blitStreamInit(0, 0, VGA.getHSize());
+
+	SmallFSFile entry = SmallFS.open(name);
+	if (entry.valid()) {
+		entry.readCallback( entry.size(), &VGA.blitStream, (void*)&VGA );
+	}
+}
+
+void entryImage(const char *name)
+{
+	blitImage(name);
+	// Wait for upper key
+	event_t ev;
+	do {
+		ev = hasEvent();
+	} while (ev==event_none);
+
+}
+
 void setup()
 {
 
@@ -440,18 +473,20 @@ void setup()
 	Serial.begin(115200);
 	Serial.println("Starting");
 
-	VGA.blitStreamInit(0, 0, VGA.getHSize());
-
 	if (SmallFS.begin()<0) {
-		
-	} else {
-		SmallFSFile image1 = SmallFS.open("image.dat");
-		if (image1.valid()) {
-			image1.readCallback( image1.size(), &VGA.blitStream, (void*)&VGA );
-		}
-		ymaudiofile = SmallFS.open("audio.dat");
-		pokeyaudiofile = SmallFS.open("sapdump.bin");
+		Serial.println("No SmalLFS found, aborting.");
+		while(1);
 	}
+
+
+	entryImage("eimage.dat");
+	entryImage("eimage2.dat");
+
+
+	blitImage("image.dat");
+	ymaudiofile = SmallFS.open("audio.dat");
+	pokeyaudiofile = SmallFS.open("sapdump.bin");
+
 
     // Init next piece Area
 
@@ -698,11 +733,10 @@ void game_start()
 void audiofill()
 {
 	// Check audio
-	ymframe f;
-	pokeyframe p;
 	int r;
 
 #ifdef HAVE_YM
+	ymframe f;
 	while (!YMaudioBuffer.isFull()) {
 		r = ymaudiofile.read(&f.regval[0], 16);
 		if (r==0) {
@@ -715,6 +749,7 @@ void audiofill()
 
 
 #ifdef HAVE_POKEY
+	pokeyframe p;
 	while (!POKEYaudioBuffer.isFull()) {
 		r = pokeyaudiofile.read(&p.regval[0], 9);
 		if (r==0) {
@@ -729,7 +764,6 @@ void audiofill()
 
 void game_play()
 {
-
 	if (!currentpiecevalid) {
 		px=5;py=0;
 		currentpiece=nextpiece;
