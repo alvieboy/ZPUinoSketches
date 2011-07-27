@@ -66,6 +66,8 @@ static bool currentpiecevalid=false;
 /* Colors for current and next piece */
 static color_type *currentcolor, *nextcolor;
 
+static unsigned int timerTicks = 0;
+
 const int OPERATION_CLEAR=0;
 const int OPERATION_DRAW=1;
 
@@ -242,6 +244,7 @@ void _zpu_interrupt()
 		}
 	}
 #endif
+	timerTicks++;
 
 	TMR0CTL &= ~(BIT(TCTLIF));
 }
@@ -557,7 +560,10 @@ void waitTick()
 	sync();
 	usleep(100000);
 #endif
-	delay(100);
+	timerTicks = 0;
+	while ( timerTicks < 5 ) {
+		audiofill();
+	}
 }
 
 void special_effects(int y)
