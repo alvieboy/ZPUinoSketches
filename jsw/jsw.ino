@@ -323,7 +323,7 @@ STATIC void PRMATRIX(const unsigned char *source, unsigned char *dest)
 	*dest = *source++; dest+=COLUMNS;
 	*dest = *source++; dest+=COLUMNS;
 	*dest = *source++; dest+=COLUMNS;
-    *dest = *source;
+	*dest = *source;
 }
 
 
@@ -414,7 +414,7 @@ STATIC void loadscr(SmallFSFile &scr)
 			fbptr+=COLUMNS;
 		}
 	}
-    // Seek to pallete (not nedded, I think)
+	// Seek to pallete (not nedded, I think)
 	scr.seek( sizeof(framebuffer), SEEK_SET);
 	scr.read( &pallete[0], sizeof(pallete));
 
@@ -426,7 +426,7 @@ STATIC void opening()
 	scr = SmallFS.open("ZPUINO");
 	if (scr.valid()) {
 
-        loadscr(scr);
+		loadscr(scr);
 		// Wait for jump key
 
 		while (!( JUMP_INVERT digitalRead(JUMP_PIN))) {
@@ -451,12 +451,12 @@ void setup()
 		while (1) {
 		}
 	}
-    
+
 	pinMode(JUMP_PIN,INPUT);
 	pinMode(RIGHT_PIN,INPUT);
 	pinMode(LEFT_PIN,INPUT);
 
-    opening();
+	opening();
 }
 
 void generic_copy_from_flash(unsigned offset, unsigned char *target, unsigned size)
@@ -466,8 +466,8 @@ void generic_copy_from_flash(unsigned offset, unsigned char *target, unsigned si
 }
 
 void loop()
-{       
-    GAMESTART();
+{
+	GAMESTART();
 }
 
 static inline void copy_attributes()
@@ -480,7 +480,7 @@ STATIC void PRMESSAGE(unsigned char *dest, const char *source, unsigned size)
 {
 	btarget = dest;
 	while(size--) {
-        putChar(*source++);
+		putChar(*source++);
 	}
 }
 
@@ -506,11 +506,11 @@ STATIC int DRAWLIVES()
 
 	unsigned char *dest = &framebuffer[ 8*COLUMNS * 21 ]; // Line 21
 
-    generic_copy_from_flash(spritenum + 0x9D00, sprite, sizeof(sprite));
+	generic_copy_from_flash(spritenum + 0x9D00, sprite, sizeof(sprite));
 
 	while (l--) {
 		drawsprite(sprite, dest, 0);
-        dest+=2;
+		dest+=2;
 	}
 }
 
@@ -553,7 +553,7 @@ STATIC void BUILDROOM()
 
 	int delta;
 	if ( ROOM.slope_dir & 1 ) {
-        delta = -31;
+		delta = -31;
 	} else {
 		delta = -33;
 	}
@@ -625,10 +625,10 @@ STATIC void loadroom()
 
 		// Now, guardian_number is address IN ROM. Copy parts
 
-        generic_copy_from_flash(guardian_number,&dptr[0],2);
-        /*
-		jswrom.seek(guardian_number,SEEK_SET);
-		jswrom.read( &dptr[0], 2);*/
+		generic_copy_from_flash(guardian_number,&dptr[0],2);
+		/*
+		 jswrom.seek(guardian_number,SEEK_SET);
+		 jswrom.read( &dptr[0], 2);*/
 		//
 		// Copy the rest
 		jswrom.read( &dptr[2], 6);
@@ -646,7 +646,7 @@ STATIC void loadroom()
 	PRMESSAGE( &framebuffer[19*COLUMNS*8], (char*)ITEMS, 32);
 	// Update collected
 	PRMESSAGE( &framebuffer[19*COLUMNS*8 + 16], (char*)COLLECTED, 3);
-    drawpower();
+	drawpower();
 	memcpy(&save_wstate, &wstate, sizeof(wstate)); // Save willy state
 }
 
@@ -676,9 +676,9 @@ STATIC void GAMESTART()
 	MFLAGS=0;
 
 
-    unsigned deltas[9];
+	unsigned deltas[9];
 
-	wstate.POSITION=0x5DB4; 
+	wstate.POSITION=0x5DB4;
 	wstate.YPOSN = 0xD0;
 
 	copy_attributes();
@@ -689,7 +689,7 @@ STATIC void GAMESTART()
 			loadroom();
 		}
 
-		
+
 		i=0;
 		TICKER++;
 		//Serial.println("Tick");
@@ -698,16 +698,16 @@ STATIC void GAMESTART()
 		delay( GAMEDELAY );
 
 		// Wait for VGA retrace
-        while ((REGISTER(VGABASE,0)&1) == 0) {}
+		while ((REGISTER(VGABASE,0)&1) == 0) {}
 		while ((REGISTER(VGABASE,0)&1) != 0) {}
-        while ((REGISTER(VGABASE,0)&1) == 0) {}
+		while ((REGISTER(VGABASE,0)&1) == 0) {}
 		while ((REGISTER(VGABASE,0)&1) != 0) {}
 #else
 		delay(GAMEDELAY);
 		REGISTER(VGABASE,3) = 1; // Disable screen
 #endif
-        DRAWLIVES();
-        bzero(framebuffer, 16*COLUMNS*8 ); // Only clear game-area
+		DRAWLIVES();
+		bzero(framebuffer, 16*COLUMNS*8 ); // Only clear game-area
 		BUILDROOM();
 		DRAWROOM();
 		UPDATEGUARD();
@@ -724,7 +724,7 @@ STATIC void GAMESTART()
 		DRAWGUARD();
 		CHKOBJECTS();
 
-        updatepower();
+		updatepower();
 #ifdef SIMULATION
 		REGISTER(VGABASE,3) = 0; // Enable screen
 #endif
@@ -813,9 +813,9 @@ STATIC void DRAWGUARD()
 
 	do {
 		unsigned i = *gptr;
-   /* 	Serial.print("Guardian: ");
-		printhexbyte(*gptr);
-        Serial.println("");*/
+		/* 	Serial.print("Guardian: ");
+		 printhexbyte(*gptr);
+		 Serial.println("");*/
 		if (i==0xff)
 			return;
 
@@ -823,12 +823,12 @@ STATIC void DRAWGUARD()
 
 		if (i==0) {
 			// No guardian
-            //Serial.println("No guard");
+			//Serial.println("No guard");
 			gptr+=8;
 			continue;
 		}
 		if (i==0x3) { /* Rope */
-		    //Serial.println("Rope");
+			//Serial.println("Rope");
 			DRAWROPE();
 			gptr+=8;
 			continue;
@@ -840,20 +840,20 @@ STATIC void DRAWGUARD()
 			continue;
 		}
 		/* Normal */
-	   /* Serial.print("Ypos ");
-		printhexbyte(gptr[3]);
-		Serial.println("");*/
+		/* Serial.print("Ypos ");
+		 printhexbyte(gptr[3]);
+		 Serial.println("");*/
 		unsigned ypos = gptr[3]>>1;
 		unsigned xpos = (unsigned)gptr[2];
 
 		unsigned attr;
 
 		attr = gptr[1];  // Get guardian attribute
-        attr&=0xf; // Keep b3-b0
-        attr+=0x38;	// Move BRIGHT up to bit 6
+		attr&=0xf; // Keep b3-b0
+		attr+=0x38;	// Move BRIGHT up to bit 6
 		attr&=0x47; // Keep INK and BRIGHT
 
-        xpos &= 0x1F; // No overflow
+		xpos &= 0x1F; // No overflow
 
 		// Convert ypos.
 
@@ -866,7 +866,7 @@ STATIC void DRAWGUARD()
 
 		unsigned char *attrptr = &pallete[ (unsigned)(gptr[2]&0x1f) + yoffset];//( ((gptr[3]>>1)<<2)&(~0x1f) ) ];
 
-		
+
 
 
 		// Merge attribute
@@ -874,7 +874,7 @@ STATIC void DRAWGUARD()
 		attr = (*attrptr & 0x38 ) | attr;
 
 
-        // Two uppermost cells
+		// Two uppermost cells
 		*attrptr++ = attr;
 		*attrptr = attr;
 		attrptr+=31; //  move to next line
@@ -899,9 +899,9 @@ STATIC void DRAWGUARD()
 		 Serial.print("Sprite at 0x");
 		 printhex(offset);
 		 Serial.println("");
-           */
+		 */
 		/* Seek to sprite */
-        generic_copy_from_flash(offset,sprite,sizeof(sprite));
+		generic_copy_from_flash(offset,sprite,sizeof(sprite));
 
 		if ( drawsprite( sprite, &framebuffer[xpos], 1 ) ) {
 			//Serial.println("Kill: collision");
@@ -1035,7 +1035,7 @@ STATIC int check_and_draw_willy_attribute(unsigned char *attrptr, int skip)
 		*attrptr = ROOM.background[0] | 0x7;
 	}
 
-    return 0;
+	return 0;
 }
 
 STATIC void UPDATEWILLY()
@@ -1051,7 +1051,7 @@ STATIC void UPDATEWILLY()
 
 	pos += E;
 
-    willy_offset = 0;
+	willy_offset = 0;
 
 	// 0x40 or 0x41. See if standing on a slope
 
@@ -1070,7 +1070,7 @@ STATIC void UPDATEWILLY()
 			A ^= B;
 			A &= 0xC;
 			B=A;
-            willy_offset = B;
+			willy_offset = B;
 
 			// This is used as offset for draw_willy
 
@@ -1141,9 +1141,9 @@ STATIC void move_willy()//L8FBC()
 {
 	if ( (wstate.DIRECTION & 0x2) == 0)
 		return;                       // don't update
-                  /*
-	if ( ((wstate.ONROPE-1)&0x80) == 0)
-		return;     */
+	/*
+	 if ( ((wstate.ONROPE-1)&0x80) == 0)
+	 return;     */
 
 	//Serial.println("Updating willy");
 
@@ -1182,7 +1182,7 @@ STATIC void MOVEMENT()
 			// We underflow below 0 ?
 			// Go up
 			go_up();
-            return;
+			return;
 		}
 
 		wstate.YPOSN = l_YPOSN;
@@ -1192,11 +1192,11 @@ STATIC void MOVEMENT()
 		if (attrptr[0] == ROOM.wall[0] || attrptr[1] == ROOM.wall[0] ) {
 			l_YPOSN += 0x10;
 			l_YPOSN &= 0xF0;
-            wstate.YPOSN = l_YPOSN;
+			wstate.YPOSN = l_YPOSN;
 			wally_recompute_position();
 
 			wstate.FALLING=2;
-            wstate.DIRECTION &= 0xFD;
+			wstate.DIRECTION &= 0xFD;
 			return;
 		}
 
@@ -1204,11 +1204,11 @@ STATIC void MOVEMENT()
 
 		if( l_JUMPING==0x12) {
 			wstate.FALLING=0x6; // We fell after jumping
-            wstate.JUMPING = l_JUMPING;
+			wstate.JUMPING = l_JUMPING;
 			return;
 		} else if (l_JUMPING!=0x10) {
 			if( l_JUMPING!=0x0D) { // We are jumping downwards, and we have a block, check block
-                wstate.JUMPING=l_JUMPING;
+				wstate.JUMPING=l_JUMPING;
 				return move_willy();
 			}
 		}
@@ -1286,7 +1286,7 @@ STATIC void read_willy_input()
 	unsigned k_left  = LEFT_INVERT digitalRead(LEFT_PIN);
 	unsigned k_right = RIGHT_INVERT digitalRead(RIGHT_PIN);
 
-    // Check block under willy feet
+	// Check block under willy feet
 	if (attrptr[64]==ROOM.conveyor[0] || attrptr[65]==ROOM.conveyor[0]) {
 		/* Standing on a conveyor */
 		if (ROOM.conv_dir) {
@@ -1305,13 +1305,13 @@ STATIC void read_willy_input()
 	unsigned old_direction = wstate.DIRECTION & 1;
 
 	if (k_left) {
-        wstate.DIRECTION&=0xFE;
+		wstate.DIRECTION&=0xFE;
 	}
 	if (k_right) {
 		wstate.DIRECTION|=1;
 	}
 
-    // Now, if we are jumping.
+	// Now, if we are jumping.
 
 	if (k_jump) {
 		wstate.DIRECTION &= 0xFD;
@@ -1330,33 +1330,33 @@ STATIC void read_willy_input()
 				if (!(k_left & k_right)) {
 					wstate.DIRECTION |= 0x2;
 				}
-                if (countdown>0)
+				if (countdown>0)
 					countdown--;
 				if (countdown==0) {
-                    countdown=-1;
+					countdown=-1;
 					goto do_move;
 				}
-			} 
+			}
 		} else {
-            countdown=-1;
+			countdown=-1;
 		}
 
 
 	} else {
-        countdown=-1;
-	do_move:
-		// Move if not both are set
-		if (k_left) {
-			if (!k_right) {
-				wstate.DIRECTION |= 0x2;
-				move_willy();
+		countdown=-1;
+		do_move:
+			// Move if not both are set
+			if (k_left) {
+				if (!k_right) {
+					wstate.DIRECTION |= 0x2;
+					move_willy();
+				}
+			} else {
+				if (k_right) {
+					wstate.DIRECTION |= 0x2;
+					move_willy();
+				}
 			}
-		} else {
-			if (k_right) {
-				wstate.DIRECTION |= 0x2;
-                move_willy();
-			}
-		}
 	}
 }
 
@@ -1372,7 +1372,7 @@ STATIC void go_left()
 {
 	HERE=ROOM.left;
 	wstate.POSITION |= 0x1f;
-    wstate.POSITION &= 0xfffffffe;  // Force into column 30
+	wstate.POSITION &= 0xfffffffe;  // Force into column 30
 	newroom=1;
 }
 
@@ -1407,12 +1407,12 @@ STATIC int move_willy_right_block()
 	// Move Willy rightwards
 	int voff = 0;
 
-    unsigned char *attrptr = &pallete[ (wstate.POSITION-0x5C00) ];
+	unsigned char *attrptr = &pallete[ (wstate.POSITION-0x5C00) ];
 
 	unsigned yposoff=0;
 	if (wstate.FALLING==0) {
 		unsigned off = ROOM.slope_dir ? 34 : 64;
-	
+
 		if (attrptr[off] == ROOM.slope[0]) {
 			// On a slope, move up or down
 
@@ -1423,7 +1423,7 @@ STATIC int move_willy_right_block()
 	unsigned newpos = (wstate.POSITION - 0x5C00) + voff;
 
 	if (((newpos+2) & 0x1f) == 0) {
-		
+
 		go_right();
 		return 0;
 	}
@@ -1440,7 +1440,7 @@ STATIC int move_willy_right_block()
 	wstate.POSITION = newpos + 1 + 0x5C00;
 	wstate.FRAME = 0;
 
-    wstate.YPOSN+=yposoff;
+	wstate.YPOSN+=yposoff;
 }
 
 
@@ -1470,8 +1470,8 @@ STATIC  int move_willy_left_block()
 	if ((newpos & 0x1f)==0) {
 
 		go_left();
-        return 0;
-	} 
+		return 0;
+	}
 
 	// TODO: check wall on 3rd line
 
@@ -1479,13 +1479,13 @@ STATIC  int move_willy_left_block()
 	if (pallete[newpos -1 ]==ROOM.wall[0]) { // Check left of willy head
 		return 0; //
 	}
-    if (pallete[newpos + 32 -1 ]==ROOM.wall[0]) { // Check left of willy head
+	if (pallete[newpos + 32 -1 ]==ROOM.wall[0]) { // Check left of willy head
 		return 0; //
 	}
-    
+
 	wstate.POSITION = newpos - 1 + 0x5C00;
 	wstate.FRAME = 0x3;
-    wstate.YPOSN += yposoff;
+	wstate.YPOSN += yposoff;
 }
 
 
@@ -1493,7 +1493,7 @@ STATIC  int move_willy_left_block()
 
 // we have two buffers, one with objects themselves, other with object flags and locations
 
-#define JSW_OBJCNT 0xad   
+#define JSW_OBJCNT 0xad
 
 #define NUM_OBJECTS (256-JSW_OBJCNT)     /* 83 */
 
@@ -1548,7 +1548,7 @@ STATIC void CHKOBJECTS()
 			unsigned char *pltr = &pallete[off]; // Get extra x/y pos
 			if ( (*pltr & 0x7)  == 0x7) {
 				// Willy collecting!!!
-				
+
 				*objptr &= 0xBF; // Clear 0x40 bit, meaning object is collected
 
 				// This is indeed faster than using printf or similar
@@ -1559,7 +1559,7 @@ STATIC void CHKOBJECTS()
 					if (*pltr<='9') {
 						break;
 					}
-                    *pltr='0';
+					*pltr='0';
 					pltr--;
 				} while (1);
 
