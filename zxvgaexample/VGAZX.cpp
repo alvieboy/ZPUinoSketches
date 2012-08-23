@@ -16,6 +16,28 @@ void VGAZX_class::begin(unsigned int slot)
 	tptr=0;
 }
 
+void VGAZX_class::loadscr(SmallFSFile &scr)
+{
+	// SCR are tricky
+
+	unsigned i,j,z;
+	for (z=0;z<3;z++) {
+		unsigned char *fbptr= &z_framebuffer[VGA_COLUMNS*(z*8*8)];
+
+		for (j=0;j<8;j++) {
+			unsigned char *tbptr=fbptr;
+			for (i=0;i<8;i++) {
+				scr.read( tbptr, VGA_COLUMNS );
+				tbptr+=VGA_COLUMNS*8;
+			}
+			fbptr+=VGA_COLUMNS;
+		}
+	}
+	// Seek to pallete (not nedded, I think)
+	scr.seek( sizeof(z_framebuffer), SEEK_SET);
+	scr.read( &z_pallete[0], sizeof(z_pallete));
+}
+
 void VGAZX_class::generic_copy_from_flash(unsigned offset, unsigned char *target, unsigned size)
 {
 	zxrom.seek(offset, SEEK_SET);
@@ -37,8 +59,10 @@ size_t VGAZX_class::write(uint8_t v)
 	}
 	return 1;
 }
-#if 0
+
+
 #define ABS(x) ((x)>0 ? (x):-1*(x))
+
 void VGAZX_class::drawLine(int x0, int y0, int x1, int y1)
 {
 	int dx = ABS(x1-x0);
@@ -46,25 +70,33 @@ void VGAZX_class::drawLine(int x0, int y0, int x1, int y1)
 	int sx = (x0 < x1) ? 1:-1;
 	int sy = (y0 < y1) ? 1:-1;
 	int err = dx-dy;
-	vgaptr_t px = getBasePointer(x0,y0);
-    vgaptr_t epx = getBasePointer(x1,y1);
+
+	unsigned px = y0*VGA_COLUMNS + x0/8;
+	unsigned epx = y1*VGA_COLUMNS + x1/8;
+
 	while (1)
 	{
-		*px = fg;
-		if (px==epx)
+		putPixel(x0,y0);
+
+		if (x0==x1 && y0==y1)
 			break;
+
 		int e2 = 2*err;
+
 		if (e2 > -dy) {
 			err-=dy;
-			px += sx;
+			x0 += sx;
 		}
+
 		if (e2 < dx) {
 			err += dx;
-			px += sy * getHSize();
+			y0 += sy;
 		}
 	}
 }
-#endif
+
+
+
 int VGAZX_class::drawsprite(const unsigned char *source, unsigned char*dest, bool check_collision, bool isxor)
 {
 	int i;

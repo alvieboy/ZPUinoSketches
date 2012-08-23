@@ -83,6 +83,8 @@ void make_blocks()
 
 int bx=3, by=(VGA_ROWS-1)*8;
 int dx=1, dy=-1;
+unsigned char ftick=0;
+
 
 void draw_ball(int x, int y, bool isxor)
 {
@@ -136,6 +138,21 @@ void setup()
 
 int lax=0, lay=0;
 
+int getButton()
+{
+	return digitalRead(JUMP_PIN);
+}
+
+void flash_area(unsigned off, unsigned count)
+{
+    unsigned char *pallete= VGAZX.pallete();
+	while (count--) {
+		pallete[off] = ( pallete[off] & 0xf8 ) | // Lose INK
+			(ftick & 0x3) + 0x3;
+		off++;
+	}
+}
+
 void flash(int x, int y, int ballx, int bally, int color=0xff)
 {
     unsigned char p;
@@ -143,7 +160,7 @@ void flash(int x, int y, int ballx, int bally, int color=0xff)
 	make_ball(ballx,bally);
 	draw_ball(ballx, bally,true);
 
-	while (digitalRead(JUMP_PIN)==0) {
+	while (getButton()==0) {
 		p = *VGAZX.pallete(x, y);
 		*VGAZX.pallete(x, y) = color;
 		delay(50);
@@ -167,9 +184,9 @@ void wait_up()
     return;
 }
 
-void loop()
+void ball_demo()
 {
-	int nx, ny, nay,nax;
+	int nx, ny;
 	int hcol=0, vcol=0;
 	make_ball(bx,by);
 	draw_ball(bx,by,true);
@@ -179,20 +196,6 @@ void loop()
 
 	nx=bx+dx;
 	ny=by+dy;
-
-	if (dx==1) {
-		/* Moving right */
-		nax=nx+BALL_SIZE_BITS-1;
-	} else {
-		nax=nx-(BALL_SIZE_BITS+1);
-	}
-
-	if (dy==1) {
-		/* Moving right */
-		nay=ny+BALL_SIZE_BITS-1;
-	} else {
-		nay=ny-(BALL_SIZE_BITS+1);
-	}
 
 	/* Out of bounds check */
 
@@ -248,4 +251,202 @@ void loop()
 
 	bx=nx;
 	by=ny;
+}
+
+void randomize_color_area()
+{
+    	volatile unsigned char *memory=(volatile unsigned char*)0x1010;
+
+	int d = 5*VGA_COLUMNS;
+	for (;d<20*VGA_COLUMNS;d++) {
+		VGAZX.pallete()[d] = memory[TIMERTSC & 0xfff];
+	}
+}
+void stage5_init()
+{
+	SmallFSFile f = SmallFS.open("scr1");
+	VGAZX.loadscr(f);
+}
+void stage6_init()
+{
+	SmallFSFile f = SmallFS.open("scr2");
+	VGAZX.loadscr(f);
+}
+
+void stage7_init()
+{
+	SmallFSFile f = SmallFS.open("scr3");
+	VGAZX.loadscr(f);
+}
+void stage8_init()
+{
+	SmallFSFile f = SmallFS.open("scr4");
+	VGAZX.loadscr(f);
+}
+
+void stage4_init()
+{
+	int i;
+	for (i=0;i<((VGA_ROWS*8)/2)-1;i+=2) {
+		VGAZX.drawLine(0,0,(VGA_COLUMNS*8)-1,i);
+	}
+
+	for (i=((VGA_COLUMNS*8)/2)-2;i>=0;i-=2) {
+		VGAZX.drawLine(0,0,i,(VGA_ROWS*8)-1);
+	}
+
+	VGAZX.pctext("\033G\x08\x09"
+				 "\033C\x04"
+				 "You can address"
+				 "\033G\x09\x0A"
+				 "all pixels on the"
+				 "\033G\x0a\x0b"
+				 "screen, like this"
+				 "\033G\x0b\x0c"
+				 "Moire pattern"
+				 "\033G\x0c\x0d"
+				 "shows."
+				 "\033G\x0d\x0f"
+				 "\033C\x01"
+				 "Let's see some"
+				 "\033G\x0e\x10"
+				 "popular games now!"
+				);
+
+	bx=200, by=(VGA_ROWS-1)*8;
+	dx=1, dy=-1;
+
+}
+
+void stage3_init()
+{
+	volatile unsigned char *memory=(volatile unsigned char*)0x1010;
+
+	VGAZX.pctext("But you can get some other nice"
+				 "\033G\x00\x01"
+				 "effects, with small CPU effort !"
+				 "\033G\x00\x02"
+				 "________________________________");
+    randomize_color_area();
+}
+
+void stage2_init()
+{
+
+	VGAZX.pctext("This 8x8 color block can cause"
+				 "\033G\x00\x01"
+				 "some odd appearance on pixels,"
+				 "\033G\x00\x02"
+                 "since you cannot directly map a"
+				 "\033G\x00\x03"
+				 "pixel color..."
+				 "\033G\x00\x04"
+				 "________________________________");
+    randomize_color_area();
+}
+
+
+void stage1_init()
+{
+	VGAZX.pctext("\033C\x07"
+				 "First of all, let's take a look"
+				 "\033G\x00\x01"
+				 "at this graphical adaptor we are"
+				 "\033G\x00\x02"
+				 "Using. It is based in original"
+				 "\033G\x00\x03"
+				 "ZX Spectrum graphics adaptor."
+				 "\033G\x00\x04"
+				 "The screen is 256x192 pixel wide"
+				 "\033G\x00\x05"
+				 "and color can be mapped to any"
+				 "\033G\x00\x06"
+				 "8x8 block, with 3 bits for the"
+				 "\033G\x00\x07"
+				 "background and foreground color."
+				 "\033G\x00\x08"
+				 "\033C\x01" "J"
+				 "\033C\x02" "u"
+				 "\033C\x03" "s"
+				 "\033C\x04" "t"
+				 "\033C\x05" "L"
+				 "\033C\x06" "i"
+				 "\033C\x07" "k"
+				 "\033C\x08" "e"
+				 "\033C\x10" "T"
+				 "\033C\x18" "h"
+				 "\033C\x20" "i"
+				 "\033C\x28" "s"
+				 "\033C\x30" "!"
+                 "\033C\x07" "___________________"
+
+				 "\033G\x14\x16"
+				 "Press button"
+				 "\033G\x15\x17"
+				 "to continue"
+
+				);
+}
+
+int stage=0;
+
+void switch_to_stage(int newstage)
+{
+
+	VGAZX.clrscr();
+
+	bx=3, by=(VGA_ROWS-1)*8;
+	dx=1, dy=-1;
+
+	switch (newstage) {
+	case 1:
+		stage1_init();
+        break;
+	case 2:
+		stage2_init();
+        break;
+	case 3:
+		stage3_init();
+        break;
+	case 4:
+		stage4_init();
+        break;
+	case 5:
+		stage5_init();
+        break;
+	case 6:
+		stage6_init();
+        break;
+	case 7:
+		stage7_init();
+        break;
+	case 8:
+		stage8_init();
+        break;
+	}
+}
+
+void loop()
+{
+	switch (stage) {
+	case 3:
+		if (ftick&2)
+			randomize_color_area();
+	case 0:
+	case 2:
+	case 4:
+		ball_demo();
+		break;
+	case 1:
+		ball_demo();
+        flash_area(3*VGA_COLUMNS,11);
+		break;
+	}
+
+	if (getButton()==1) {
+		while (getButton()==1);
+		stage++;
+        switch_to_stage(stage);
+	}
+	ftick++;
 }

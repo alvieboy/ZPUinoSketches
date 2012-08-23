@@ -30,8 +30,9 @@ public:
 	static int drawsprite(const unsigned char *source, unsigned char*dest,bool check_collision, bool isxor=false);
 	static void drawblock(const unsigned char *source, unsigned char *dest);
 	static int sprite_collides(const unsigned char *source, unsigned char*dest);
-
+	static inline void putPixel(int x,int y) { z_framebuffer[y*VGA_COLUMNS+x/8]|=0x80>>(x%8); }
 	static int pctext(const char *text);
+	static void loadscr(SmallFSFile &);
 protected:
 
 	static inline void blit8x8(unsigned char value, void*)
