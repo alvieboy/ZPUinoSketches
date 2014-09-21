@@ -42,6 +42,8 @@ static unsigned char ball_sprite[32];
 
 void make_speed(int *sx, int *sy);
 void update_player();
+static void playLost();
+static void waitStart();
 
 unsigned char small_ball[6] = {
 	0x30, 0x78, 0xfc, 0xdc, 0x78, 0x30
@@ -49,9 +51,10 @@ unsigned char small_ball[6] = {
 
 #define BLOCK_HEIGHT 2
 #define BLOCK_HCOUNT 4
-#define BLOCK_WIDTH 8
+#define BLOCK_WIDTH 4
 
-#define PLAYER_SIZE_PIX 5
+#define PLAYER_SIZE_PIX 7
+
 int lost=0;
 
 typedef enum {
@@ -64,7 +67,7 @@ gamestate_t gamestate;
 
 static unsigned char screenblocks[(VGA_COLUMNS/BLOCK_WIDTH)*BLOCK_HCOUNT];
 
-Positioner_class<VGA_COLUMNS-PLAYER_SIZE_PIX, 0> positioner;
+Positioner_class<VGA_COLUMNS-PLAYER_SIZE_PIX+1, 0> positioner;
 
 static int oldx;
 
@@ -84,17 +87,17 @@ void draw_player()
 	int x;
         if (player_moved) {
             //RGBPanel.fillRect( 0, HEIGHT-2, WIDTH, HEIGHT, 0);
-            RGBPanel.fillRect( oldx, HEIGHT-2, 5, 2, 0);
+            RGBPanel.fillRect( oldx, HEIGHT-2, PLAYER_SIZE_PIX, 2, 0);
 
             //memset( VGAZX.framebuffer(0,4+23*8),0,VGA_COLUMNS*4);
 	}
         //for (x=player_x;x<player_x+PLAYER_SIZE_PIX;x++) {
-        RGBPanel.fillRect( player_x, HEIGHT-2, 5, 2, 0x808080);
+        RGBPanel.fillRect( player_x, HEIGHT-2, PLAYER_SIZE_PIX, 2, 0x808080);
         //positioner.getX()
 }
 
 
-int bx=3, by=(VGA_ROWS-2);
+int bx=(PLAYER_SIZE_PIX/2)+1, by=(VGA_ROWS-2);
 int dx=8, dy=-16;
 unsigned char ftick=0;
 
@@ -335,9 +338,18 @@ unsigned roundpos(unsigned v)
     return ret;
 }
 
+int interDelay=0;
+
+
+void clearTextArea()
+{
+    /* Clear area */
+    RGBPanel.fillRect( 0, 32,  VGA_COLUMNS, 16, 0x00000000 );
+}
 
 void prepareStart()
 {
+    clearTextArea();
 }
 
 int demo_loop()
@@ -348,9 +360,13 @@ int demo_loop()
     unsigned rbx = roundpos(bx);
     unsigned rby = roundpos(by);
 
+    if (interDelay!=0)
+        interDelay = interDelay-1;
+
+
     if (gamestate==WAITSTART) {
         // Ball is on top of player.
-        rbx = player_x + 2;
+        rbx = player_x + ((PLAYER_SIZE_PIX/2));
         rby = VGA_ROWS - 3;//29;
     }
     //printf("Current x %d, y %d\n", rbx,rby);
@@ -448,6 +464,8 @@ int demo_loop()
 
     }
     if (lost) {
+        if (gamestate != END)
+            playLost();
         gamestate=END;
     }
 
@@ -465,10 +483,17 @@ int demo_loop()
     // Check WII buttons
     if (gamestate==WAITSTART || gamestate==END) {
         //WIIChuck.update();
-        if (WIIChuck.getCButton()) {
+
+        if ((gamestate==END) && (interDelay==0)) {
+            gamestate=WAITSTART;
+            lost=0;
+            waitStart();
+        }
+
+        if ((interDelay==0) && (WIIChuck.getCButton())) {
             gamestate = GAME;
             speed = 16.0;
-            angle = 32;
+            angle = (TIMERTSC&4) ? 32: -32;
 
             lost=0;
             prepareStart();
@@ -537,17 +562,42 @@ void update_player()
         player_moved=1;
 }
 
+static void waitStart()
+{
+    RGBPanel.setTextColor(0xffff00);
+    clearTextArea();
+    // 16 chars.
+    RGBPanel.setCursor((96/2)-(6*16)/2,33);
+    RGBPanel.print("Carrega no botao");
+    RGBPanel.setCursor((96/2)-(6*16)/2,33+7);
+    RGBPanel.print(" para comecares ");
+    gamestate = WAITSTART;
+    interDelay=0;
+}
+
+static void playLost()
+{
+    RGBPanel.setTextColor(0xff4040);
+    clearTextArea();
+    // 16 chars.
+    RGBPanel.setCursor((96/2)-(6*16)/2,33);
+    RGBPanel.print("Perdeste a bola!");
+    interDelay=100;
+}
+
 void ball_setup()
 {
     speed = 16.0;
-    angle = 32;
+    angle = (TIMERTSC&4)?32:-32;
 
-    bx=3<<4;
+    positioner.setShift(6);
+
+    bx=((PLAYER_SIZE_PIX/2)+1)<<4;
     by=(VGA_ROWS-2)<<4;
 
     dx=8;
     dy=-16;
-
+    interDelay=0;
 //    draw_block_screen();
     RGBPanel.clear();
     memset( screenblocks, 1, sizeof(screenblocks) );
@@ -555,7 +605,7 @@ void ball_setup()
     RGBPanel.apply();
     
     randomSeed(TIMERTSC);
-    gamestate = WAITSTART;
+    waitStart();
 }
 void ball_calibrate()
 {

@@ -3,13 +3,19 @@
 
 #include "wiichuck.h"
 
-#define SHIFTPOS 5
 #define DEADZONE 5 /* Joy dead zone */
 
 template<unsigned int MAXX,unsigned int MAXY>
 class Positioner_class
 {
 public:
+    Positioner_class(): SHIFTPOS(5)
+    {
+    }
+    int SHIFTPOS;
+    void setShift(int i) {
+        SHIFTPOS=i;
+    }
     int centerx,centery; // Joy center
     void calibrate(){
         WIIChuck.update();
@@ -30,16 +36,24 @@ public:
         updateData();
     }
 
+    int deltax, deltay;
+    int getDeltaX() const { return deltax; }
+    int getDeltaY() const { return deltay; }
+
     void updateData()
     {
         int jx = (int)WIIChuck.getJoyX() - centerx;
         int jy = centery - (int)WIIChuck.getJoyY();
 
+        deltax=deltay=0;
+
         if (jx>DEADZONE || jx<-DEADZONE) {
+            deltax=jx;
             xpos+=jx;
         }
 
         if (jy>DEADZONE|| jy<-DEADZONE) {
+            deltay=jy;
             ypos+=jy;
         }
 
