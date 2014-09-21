@@ -42,12 +42,12 @@ public:
             I2CREG_CTR=0; // Disable all
             I2CREG_PRERhi = pres>>8;
             I2CREG_PRERlo = pres&0xff;
-            printf("I2C at slot %d, instance %d, base register 0x%08x\n",
+            printf("I2C at slot %d, instance %d, base register 0x%08x\r\n",
                    getSlot(), getInstance(), getBaseRegister());
 
-            Serial.println(I2CREG_PRERhi, HEX);
+            //Serial.println(I2CREG_PRERhi, HEX);
         } else {
-            Serial.println("I2C device not found");
+            Serial.println("I2C device not found\r\n");
         }
     }
 

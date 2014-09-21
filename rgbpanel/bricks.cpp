@@ -31,8 +31,8 @@
 
 #endif
 
-#define VGA_COLUMNS 64
-#define VGA_ROWS 32
+#define VGA_COLUMNS 96
+#define VGA_ROWS 64
 
 extern "C" const unsigned int costable[64]; /* Cosine table from 0 to PI/2 */
 
@@ -62,26 +62,14 @@ typedef enum {
 
 gamestate_t gamestate;
 
-unsigned char screenblocks[(VGA_COLUMNS/BLOCK_WIDTH)*BLOCK_HCOUNT];
+static unsigned char screenblocks[(VGA_COLUMNS/BLOCK_WIDTH)*BLOCK_HCOUNT];
 
 Positioner_class<VGA_COLUMNS-PLAYER_SIZE_PIX, 0> positioner;
 
+static int oldx;
+
 void make_ball(int x, int y)
 {
-#if 0
-	memset(ball_sprite,0x0,sizeof(ball_sprite));
-
-	int rx= x % 8;
-	int ry= y % 8;
-
-	int i,z;
-	for (i=0,z=ry<<1;i<6;i++) {
-		unsigned v = small_ball[i];
-		ball_sprite[z++]=v>>rx;
-		ball_sprite[z++]=v<<(8-rx);
-        }
-#endif
-
 }
 
 void make_blocks()
@@ -95,7 +83,9 @@ void draw_player()
 {
 	int x;
         if (player_moved) {
-            RGBPanel.fillRect( 0, HEIGHT-2, WIDTH, HEIGHT, 0);
+            //RGBPanel.fillRect( 0, HEIGHT-2, WIDTH, HEIGHT, 0);
+            RGBPanel.fillRect( oldx, HEIGHT-2, 5, 2, 0);
+
             //memset( VGAZX.framebuffer(0,4+23*8),0,VGA_COLUMNS*4);
 	}
         //for (x=player_x;x<player_x+PLAYER_SIZE_PIX;x++) {
@@ -127,36 +117,10 @@ int getButton()
 
 void flash_area(unsigned off, unsigned count)
 {
-#if 0
-    unsigned char *pallete= VGAZX.pallete();
-	while (count--) {
-		pallete[off] = ( pallete[off] & 0xf8 ) | // Lose INK
-			(ftick & 0x3) + 0x3;
-		off++;
-        }
-#endif
 }
 
 void flash(int x, int y, int ballx, int bally, int color=0xff)
 {
-#if 0
-    unsigned char p;
-    return;
-
-	make_ball(ballx,bally);
-	draw_ball(ballx, bally,true);
-
-	while (getButton()==0) {
-		p = *VGAZX.pallete(x, y);
-		*VGAZX.pallete(x, y) = color;
-		delay(50);
-		*VGAZX.pallete(x, y) = p;
-		delay(50);
-	}
-	//Serial.read();
-        draw_ball(ballx,bally,true);
-#endif
-
 }
 
 int test_collision(int x, int y)
@@ -165,13 +129,13 @@ int test_collision(int x, int y)
 
     //return VGAZX.sprite_collides(ball_sprite,VGAZX.framebuffer(x/8,(y/8)*8));
     unsigned p = RGBPanel.readPixel(x,y);
-    printf("Col check: 0x%x\n",p);
+    //printf("Col check: 0x%x\n",p);
     return p==0 ? -1 : 1;
 }
 
 void wait_up()
 {
-    delay(10);//1000);
+    //delay(10);//1000);
     return;
 }
 
@@ -252,8 +216,8 @@ void draw_block_screen()
 				break;
 			case BLOCK_RIGHT:
 				tempblock[i] |= 0x1;
-                break;
-			}
+                                break;
+                        }
 		}
 
 		/* draw */
@@ -299,15 +263,9 @@ void clear_block(int x, int y)
     Serial.println(screenblocks[boffset] & BLOCK_TYPE_MASK);
 #endif
 
-#if 0
-	VGAZX.pallete()[boffset] = 0x7;
-	screenblocks[boffset] = BLOCK_SOLID;
-	/* Clear pixmap */
-        VGAZX.drawblock(emptyblock, VGAZX.framebuffer(x,y*8));
-#endif
-        screenblocks[boffset] = BLOCK_SOLID;
-        RGBPanel.fillRect( (boffset*BLOCK_WIDTH)%VGA_COLUMNS, ((boffset*BLOCK_WIDTH)/VGA_COLUMNS)*2, BLOCK_WIDTH, BLOCK_HEIGHT,
-                          0x0);
+    screenblocks[boffset] = BLOCK_SOLID;
+    RGBPanel.fillRect( (boffset*BLOCK_WIDTH)%VGA_COLUMNS, ((boffset*BLOCK_WIDTH)/VGA_COLUMNS)*2, BLOCK_WIDTH, BLOCK_HEIGHT,
+                      0x0);
 
 }
 
@@ -377,6 +335,11 @@ unsigned roundpos(unsigned v)
     return ret;
 }
 
+
+void prepareStart()
+{
+}
+
 int demo_loop()
 {
     int nx, ny;
@@ -388,7 +351,7 @@ int demo_loop()
     if (gamestate==WAITSTART) {
         // Ball is on top of player.
         rbx = player_x + 2;
-        rby = 29;
+        rby = VGA_ROWS - 3;//29;
     }
     //printf("Current x %d, y %d\n", rbx,rby);
 
@@ -494,20 +457,21 @@ int demo_loop()
         by=ny;
     } else {
         bx=(player_x + 2)<<4;
-        by=29<<4;
+        by=(VGA_ROWS-3)<<4;
     }
 
     update_player();
 
     // Check WII buttons
     if (gamestate==WAITSTART || gamestate==END) {
-        WIIChuck.update();
+        //WIIChuck.update();
         if (WIIChuck.getCButton()) {
             gamestate = GAME;
             speed = 16.0;
             angle = 32;
 
             lost=0;
+            prepareStart();
         }
     }
     if (gamestate==GAME) {
@@ -563,7 +527,7 @@ void make_speed(int *sx, int *sy)
 
 void update_player()
 {
-    int oldx = player_x;
+    oldx = player_x;
     positioner.update();
     player_x = positioner.getX();
 
@@ -586,6 +550,7 @@ void ball_setup()
 
 //    draw_block_screen();
     RGBPanel.clear();
+    memset( screenblocks, 1, sizeof(screenblocks) );
     draw_block_screen();
     RGBPanel.apply();
     
@@ -598,8 +563,12 @@ void ball_calibrate()
 }
 
 
+void ball_demo_loop()
+{
+    demo_loop();
+}
+
 void ball_demo()
 {
     ball_setup();
-    while (demo_loop()==0);
 }

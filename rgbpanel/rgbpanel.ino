@@ -2,19 +2,38 @@
 #include "wiichuck.h"
 #include "mvfilter.h"
 #include "panel.h"
+#include "dualpanel.h"
 #include "Adafruit_GFX.h"
+//#include "gfxframebuffer.h"
 #include "wiipositioner.h"
+#include "wiipositionerdyn.h"
+#include "menus.h"
 
 #include <SD.h>
 #include <SigmaDelta.h>
 #include <SPI.h>
 
 #include "audio.h"
+#include "AlvieGFX.h"
 
 extern void ball_setup();
 extern void ball_demo();
+extern void ball_demo_loop();
 extern void ball_calibrate();
+extern void camera_setup();
+extern void setCamera(int x, int y);
+extern int getCameraMax();
+extern int getCameraMin();
 
+enum { NONE, BALL, VIDEO } currentMode;
+
+
+DualRGBPanel_class RGBPanel;
+//GFXFramebuffer_class GFXFrameBuffer;
+DynPositioner_class cameraPositioner;
+
+
+#if 0
 const unsigned char linearTable[256] = {
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
@@ -33,6 +52,35 @@ const unsigned char linearTable[256] = {
     129, 132, 135, 138, 141, 144, 148, 151, 154, 158, 161, 165, 168, 172, 176, 180,
     184, 188, 192, 196, 201, 205, 209, 214, 219, 224, 229, 234, 239, 244, 249, 255
 };
+
+#else
+
+const unsigned char linearTable[256] = {
+    0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2,
+    2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 4, 4,
+    4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 6, 6, 6, 6, 6, 7,
+    7, 7, 7, 8, 8, 8, 8, 9, 9, 9, 10, 10, 10, 10, 11,
+    11, 11, 12, 12, 12, 13, 13, 13, 14, 14, 15, 15, 15,
+    16, 16, 17, 17, 17, 18, 18, 19, 19, 20, 20, 21, 21,
+    22, 22, 23, 23, 24, 24, 25, 25, 26, 26, 27, 28, 28,
+    29, 29, 30, 31, 31, 32, 33, 33, 34, 35, 35, 36, 37,
+    37, 38, 39, 40, 40, 41, 42, 43, 44, 44, 45, 46, 47,
+    48, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 58,
+    59, 60, 61, 62, 63, 65, 66, 67, 68, 69, 70, 71, 72,
+    73, 74, 75, 77, 78, 79, 80, 81, 83, 84, 85, 86, 88,
+    89, 90, 91, 93, 94, 95, 97, 98, 99, 101, 102, 104,
+    105, 107, 108, 109, 111, 112, 114, 115, 117, 119,
+    120, 122, 123, 125, 126, 128, 130, 131, 133, 135,
+    136, 138, 140, 142, 143, 145, 147, 149, 151, 152,
+    154, 156, 158, 160, 162, 164, 166, 168, 170, 171,
+    173, 175, 178, 180, 182, 184, 186, 188, 190, 192,
+    194, 196, 199, 201, 203, 205, 208, 210, 212, 214,
+    217, 219, 221, 224, 226, 229, 231, 233, 236, 238,
+    241, 243, 246, 248, 251, 253, 255
+};
+
+#endif
+
 
 unsigned linearize(unsigned value)
 {
@@ -56,13 +104,88 @@ static int xpos;
 static int ypos;
 
 static int centerx,centery; // Joy center
+static int camoffset;
+
+/* Menu stuff */
+static bool menuVisible = false;
+
+void onVideo(void *p)
+{
+    Serial.println("Video");
+    currentMode = VIDEO;
+    videoStart();
+    RGBPanel.clear();
+    exitMenus(p);
+    RGBPanel.apply();
+}
+
+void onBricks(void*p)
+{
+    currentMode = BALL;
+    ball_setup();
+    exitMenus(p);
+}
+
+void exitMenus(void *a)
+{
+    menuExit();
+    menuVisible=false;
+    RGBPanel.setApplyEnabled(true);
+}
+
+
+void showMenu()
+{
+    menuReset();
+    menuVisible=true;
+    menuShowTop();
+}
+
+static void createMenus()
+{
+    subMenu *config = new subMenu("Opcoes");
+
+    subMenu *modo = new subMenu("Modo");
+    config->appendChild(modo);
+    modo->setParent(config);
+
+    modo->appendChild( new menuItem("Video", &onVideo) );
+    modo->appendChild( new menuItem("Bricks", &onBricks)) ;
+    modo->appendChild( new menuItem("SoundPuddle",&onVideo) ) ;
+    modo->appendChild( new menuItem("< Voltar",(void(*)(void*))&menuSwitchTo, config) ) ;
+
+    subMenu *controle = new subMenu("Controle");
+    config->appendChild(controle);
+    controle->setParent(config);
+    controle->appendChild( new menuItem("< Voltar",(void(*)(void*))&menuSwitchTo, config) ) ;
+
+    config->appendChild( new menuItem("Sair",(void(*)(void*))&exitMenus) ) ;
+
+    menuSetTop(config);
+}
+
 
 void setup() {
   // put your setup code here, to run once:
   int index;
-  Serial.begin(115200);
+  Serial.begin(3000000);
   Serial1.begin(460800);
   Serial.println("Hello");
+
+  RGBPanel.begin();
+  RGBPanel.clear();
+  RGBPanel.setApplyEnabled(true);
+
+  WIIChuck.begin();
+  WIIChuck.init_nunchuck();
+
+  camera_setup();
+  camoffset = getCameraMin();
+
+  cameraPositioner.begin( getCameraMax()-camoffset,
+                          getCameraMax()-camoffset);
+  createMenus();
+  menuInit();
 
   // Setup SPI for SD card.
   SPI.begin(
@@ -75,10 +198,7 @@ void setup() {
 
   Serial1.setPins( TX(WING_B_1), RX(WING_B_0) );
 
-  WIIChuck.begin();
-  WIIChuck.init_nunchuck();
-  RGBPanel.begin();
-  RGBPanel.clear();
+  pinMode(FPGA_LED_PIN,OUTPUT);
 
   RGBPanel.setTextColor(0x808000);
   RGBPanel.setTextWrap(false);
@@ -88,11 +208,15 @@ void setup() {
 
   WIIChuck.update();
 
+
   centerx = WIIChuck.getJoyX();
   centery = WIIChuck.getJoyY();
-  ball_calibrate();
 
-  unsigned pos=63;
+  ball_calibrate();
+  cameraPositioner.calibrate();
+
+  unsigned pos=WIDTH-1;
+
   while (!WIIChuck.getCButton()) {
       //WIIChuck.update();
       RGBPanel.clear();
@@ -110,6 +234,11 @@ void setup() {
 
   while (!WIIChuck.getCButton()) {
       WIIChuck.update();
+      cameraPositioner.updateData();
+
+      // Move camera
+      setCamera( camoffset+cameraPositioner.getX(),
+                 camoffset+cameraPositioner.getY());
 
       RGBPanel.setCursor(0,16);
 
@@ -137,8 +266,10 @@ void setup() {
       RGBPanel.apply();
   }
 
-  xpos = (WIDTH/2)<<SHIFTPOS;
-  ypos = (HEIGHT/2)<<SHIFTPOS;
+  xpos = (RGBPanel.width()/2)<<SHIFTPOS;
+  ypos = (RGBPanel.height()/2)<<SHIFTPOS;
+
+
 
 }
 
@@ -252,7 +383,7 @@ public:
     int blocks[WB][HB];
 };
 
-static Blocks<64,32> mBlocks(&RGBPanel);
+static Blocks<96,64> mBlocks(&RGBPanel);
 
 
 // Accelerometer test
@@ -261,17 +392,20 @@ extern unsigned int hsvtable[256];
 
 
 
-void loop() {
+void old_loop() {
     static int mode = 0;
     static unsigned frame = 0;
 
+
+  //  videoLoop();
 #if 0
-    for (int x=0;x<64;x++)
-        for (int y=0;y<32;y++) {
-            setPixel(x, y, x<<1, x<<1, x<<1);
+    for (int x=0;x<96;x++)
+        for (int y=0;y<64;y++) {
+            RGBPanel.setPixel(x, y, x<<1, x<<1, x<<1);
         }
-    setPixel(0,1,255,255,0);
-    apply();
+    RGBPanel.setPixel(0,1,255,255,0);
+    RGBPanel.apply();
+    while (1);
 #endif
 
 #if 0
@@ -356,6 +490,11 @@ void loop() {
         }
 #else
         ball_demo();
+
+        while (1) {
+            ball_demo_loop();
+        }
+
 #if 1
         audioPlayer.begin();
         audioPlayer.open();
@@ -370,7 +509,102 @@ void loop() {
     }
     RGBPanel.apply();
     frame++;
+}
 
+void displayLoop()
+{
+    switch (currentMode) {
+    case BALL:
+        ball_demo_loop();
+        break;
+    case VIDEO:
+        videoLoop();
+
+    default:
+        break;
+    }
+}
+
+
+void loop()
+{
+    static int accumul = 0;
+    static int button = 0;
+    static int frame=0;
+    static unsigned lastcheck=TIMERTSC;
+    unsigned now;
+
+    frame++;
+    if (currentMode==VIDEO) {
+        unsigned delta;
+        now = TIMERTSC;
+        displayLoop();
+
+        if (now<lastcheck) {
+            delta=lastcheck-now;
+        } else {
+            delta=now-lastcheck;
+        }
+        if (delta<(96000000/4))
+            return;
+    }
+
+
+    WIIChuck.update();
+    lastcheck=TIMERTSC;
+    //showMenu();
+
+    if (currentMode==VIDEO && menuVisible==false) {
+        cameraPositioner.updateData();
+
+        setCamera( camoffset+cameraPositioner.getX(),
+                  camoffset+cameraPositioner.getY());
+    }
+
+    switch (WIIChuck.getButtons()) {
+    case BUTTON_Z:
+        if (button==0) {
+            if (menuVisible) {
+                menuAction();
+            } else {
+                showMenu();
+                RGBPanel.setApplyEnabled(false);
+            }
+        }
+        button=1;
+        break;
+    case BUTTON_ZC:
+        button=1;
+        //exitMenus(NULL);
+        break;
+    default:
+        button=0;
+        break;
+    }
+    if (menuVisible) {
+        int delta = (int)WIIChuck.getJoyY() - centery;
+
+        if (delta>DEADZONE || delta<-DEADZONE) {
+            accumul+=delta;
+            //Serial.println(accumul);
+            if (accumul<-100) {
+                moveMenuDown();
+                accumul=0;
+            } else if (accumul>100) {
+                moveMenuUp();
+                accumul=0;
+            }
+        }
+
+        updateMenus();
+    } else {
+        displayLoop();
+    }
+}
+
+static void framebufferChanged()
+{
+    RGBPanel.apply();
 }
 
 #define HDLC_frameFlag 0x7E
@@ -380,36 +614,76 @@ void loop() {
 int syncSeen;
 int unescaping;
 int bufferpos;
-unsigned char buffer[8192];
+
+#define VIDEOFRAMESIZE 96*64*3
+
+unsigned char buffer[VIDEOFRAMESIZE+16];
 
 inline int inbyte()
 {
-    while (!Serial1.available());
-    return Serial1.read();
+    while (!Serial.available());
+    return Serial.read();
 }
 
-void processFrame(unsigned char *buf,int size)
+static int cnt=0;
+
+#define CORRECT 1
+
+static void processFrame(unsigned char *buf,int size)
 {
     int x,y;
-    printf("Frame, size %d\r\n",size);
-    if (size==(32*64*3)) {
-        for (x=0;x<RGBPanel.width(); x++) {
+    unsigned char frametype;
+    bool needCorrection = false;
+
+
+    /* We might have several kind of frames. */
+    frametype = *buf++;
+    size--;
+
+    switch (frametype) {
+    case 1: /* Uncorrected video frame */
+        needCorrection = true;
+        /* Fallback... */
+    case 0: /* Corrected video frame */
+        cnt++;
+        digitalWrite(FPGA_LED_PIN, cnt&1);
+
+        if (size==VIDEOFRAMESIZE) {
+
             for (y=0;y<RGBPanel.height();y++) {
-                unsigned v=(linearize((unsigned)*buf++))<<16;
-                v+=(linearize((unsigned)*buf++))<<8;
-                v+=(linearize((unsigned)*buf++));
-                RGBPanel.drawPixel(x,y,v);
+                for (x=0;x<RGBPanel.width(); x++) {
+                    unsigned char r=*buf++;
+                    unsigned char g=*buf++;
+                    unsigned char b=*buf++;
+                    if (needCorrection) {
+                        RGBPanel.setPixel(x,y,r,g,b);
+                    } else {
+                        unsigned int v = b + (g<<8) + (r<<16);
+                        RGBPanel.setPixelRaw(x,y,v);
+                    }
+                }
             }
         }
-        RGBPanel.apply();
+        framebufferChanged();
+
+
+        break;
+    default:
+        /* Ignore frame */
+        break;
     }
 }
 
-void videoLoop() {
-
+static void videoStart()
+{
     syncSeen = 0;
     unescaping = 0;
-    while (1) {
+    bufferpos=0;
+}
+
+static void videoLoop() {
+
+    while (Serial.available()) {
         int i;
         i = inbyte();
         if (syncSeen) {
@@ -417,6 +691,7 @@ void videoLoop() {
                 if (bufferpos>0) {
                     syncSeen=0;
                     processFrame(buffer, bufferpos);
+                    bufferpos=0;
                 }
             } else if (i==HDLC_escapeFlag) {
                 unescaping=1;
@@ -439,4 +714,3 @@ void videoLoop() {
     }
 }
 
-RGBPanel_class RGBPanel;

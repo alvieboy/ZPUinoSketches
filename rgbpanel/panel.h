@@ -1,6 +1,10 @@
 #ifndef __PANEL_H__
 #define __PANEL_H__
 
+#include "dualpanel.h"
+
+#if 0
+
 #include "Adafruit_GFX.h"
 #include <BaseDevice.h>
 #include <Arduino.h>
@@ -106,5 +110,6 @@ public:
     unsigned int screen[NUMPIXELS];
 };
 extern RGBPanel_class RGBPanel;
+#endif
 
 #endif
