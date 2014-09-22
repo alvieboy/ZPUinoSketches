@@ -51,9 +51,9 @@ unsigned char small_ball[6] = {
 
 #define BLOCK_HEIGHT 2
 #define BLOCK_HCOUNT 4
-#define BLOCK_WIDTH 4
+#define BLOCK_WIDTH 8
 
-#define PLAYER_SIZE_PIX 7
+#define PLAYER_SIZE_PIX 9
 
 int lost=0;
 
@@ -410,9 +410,48 @@ int demo_loop()
         ny+=dy;
         ny+=dy;
         printf("Bounce Y %d\n", VGA_ROWS-BALL_SIZE_BITS);
-        angle = -1*angle;
-        if (angle < (-1*deg2index(180)))
-            angle= angle + deg2index(360);
+
+        /* Make this IF false */
+        if (0) { //(rny>(VGA_ROWS-BALL_SIZE_BITS)) && lost==0) {
+            /* Collision with player. */
+            angle = -1*angle;
+
+            /* Correct angle */
+            int delta = positioner.getDeltaX();
+            if (delta>128) {
+                delta=128;
+            }
+            if (delta<-128)
+                delta=-128;
+
+            /* delta max adjusts up to 24 degrees */
+#define MAXDEGREE 24
+            if (angle>0) {
+                angle += ((delta*MAXDEGREE))>>7;
+                if (angle<16)
+                    angle=16;
+                if (angle>48)
+                    angle=48;
+            } else {
+                angle += ((delta*MAXDEGREE))>>7;
+                if (angle>-16)
+                    angle=-16;
+                if (angle<-48)
+                    angle=-48;
+            }
+
+
+
+#if 1
+            if (angle < (-1*deg2index(180)))
+                angle= angle + deg2index(360);
+#endif
+
+        } else {
+            angle = -1*angle;
+            if (angle < (-1*deg2index(180)))
+                angle= angle + deg2index(360);
+        }
     }
 
     int col;
