@@ -2,7 +2,6 @@
 #include "wiichuck.h"
 #include "mvfilter.h"
 #include "panel.h"
-#include "dualpanel.h"
 #include "Adafruit_GFX.h"
 //#include "gfxframebuffer.h"
 #include "wiipositioner.h"
@@ -28,7 +27,7 @@ extern int getCameraMin();
 enum { NONE, BALL, VIDEO } currentMode;
 
 
-DualRGBPanel_class RGBPanel;
+RGBPanel_class RGBPanel;
 //GFXFramebuffer_class GFXFrameBuffer;
 DynPositioner_class cameraPositioner;
 
@@ -130,7 +129,7 @@ void exitMenus(void *a)
 {
     menuExit();
     menuVisible=false;
-    RGBPanel.setApplyEnabled(true);
+    //RGBPanel.setApplyEnabled(true);
 }
 
 
@@ -174,7 +173,7 @@ void setup() {
 
   RGBPanel.begin();
   RGBPanel.clear();
-  RGBPanel.setApplyEnabled(true);
+  //RGBPanel.setApplyEnabled(true);
 
   WIIChuck.begin();
   WIIChuck.init_nunchuck();
@@ -224,7 +223,10 @@ void setup() {
       RGBPanel.print("Move your ");
       RGBPanel.setCursor(pos,8);
       RGBPanel.print("WII Chuck ");
+
+
       RGBPanel.apply();
+      
       delay(5);
       if (pos>2)
           pos--;
@@ -262,6 +264,7 @@ void setup() {
       int z = WIIChuck.getAccelZ();
 
       RGBPanel.print(x);
+
 
       RGBPanel.apply();
   }
@@ -304,7 +307,7 @@ static const int colors_lighter[8] = {
 
 
 
-template<unsigned int W, unsigned int H>
+template<typename BaseClass, unsigned int W, unsigned int H>
 class Blocks {
     static const int BlockWidth = 8;
     static const int BlockHeight = 3;
@@ -316,7 +319,7 @@ class Blocks {
     Positioner_class<WIDTH-5, 0> positioner;
 
 public:
-    Blocks(Adafruit_GFX *base): D(base)
+    Blocks(BaseClass *base): D(base)
     {
         positioner.set((WIDTH/2)-3, 0);
     }
@@ -379,11 +382,11 @@ public:
             }
     }
 
-    Adafruit_GFX *D;
+    Adafruit_GFX_32 *D;
     int blocks[WB][HB];
 };
 
-static Blocks<96,64> mBlocks(&RGBPanel);
+static Blocks<RGBPanel_class,96,64> mBlocks(&RGBPanel);
 
 
 // Accelerometer test
@@ -568,7 +571,7 @@ void loop()
                 menuAction();
             } else {
                 showMenu();
-                RGBPanel.setApplyEnabled(false);
+                //RGBPanel.setApplyEnabled(false);
             }
         }
         button=1;

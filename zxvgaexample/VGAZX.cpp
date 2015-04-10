@@ -71,9 +71,6 @@ void VGAZX_class::drawLine(int x0, int y0, int x1, int y1)
 	int sy = (y0 < y1) ? 1:-1;
 	int err = dx-dy;
 
-	unsigned px = y0*VGA_COLUMNS + x0/8;
-	unsigned epx = y1*VGA_COLUMNS + x1/8;
-
 	while (1)
 	{
 		putPixel(x0,y0);
@@ -170,7 +167,7 @@ int VGAZX_class::sprite_collides(const unsigned char *source, unsigned char*dest
 	return -1;
 }
 
-int VGAZX_class::pctext(const char *text)
+void VGAZX_class::pctext(const char *text)
 {
 	unsigned char color=0x7;
 	tptr=0;

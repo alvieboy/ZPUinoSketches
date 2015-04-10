@@ -90,37 +90,45 @@ static uint8_t modes[256]= {
 
 // ----------------------------------------------- globale Faulheitsvariablen
 
-static int cycles;
-static uint8_t bval;
-static uint16_t wval;
+//static int cycles;
+//static uint8_t bval;
+//static uint16_t wval;
 
 // ----------------------------------------------------------------- Register
 
-static uint8_t a,x,y,s,p;
-static uint16_t pc;
+struct c64regs {
+	uint8_t a,x,y,s,p;
+	uint16_t pc;
+};
+
+struct c64regs cr;
 
 // ----------------------------------------------------------- DER HARTE KERN
 
 static uint8_t sidregs[32];
 
-static uint8_t getmem(uint16_t addr)
+static unsigned getmem(unsigned addr)
 {
+	addr&=0xffff;
+
 	if (addr == 0xdd0d) memory[addr]=0;
 	//printf("READ %04x = %04x\n", addr, memory[addr]);
 	if ((addr&0xfc00)==0xd400) {
 		printf("SID READ %04x cycle %d\n",addr,cycles);
 		abort();
 	}
-	return memory[addr];
+	return (unsigned)memory[addr];
 }
 
-static void writeSIDreg(int reg, int value)
+static void writeSIDreg(unsigned reg, unsigned value)
 {
 	sidregs[reg] = value;
 }
 
-static void setmem(uint16_t addr, uint8_t value)
+static void setmem(unsigned addr, unsigned value)
 {
+	addr&=0xffff;
+
 //	printf("WRITE %04x <- %02x\n", addr, value);
 
 	if ((addr&0xfc00)==0xd400) {
@@ -134,54 +142,56 @@ static void setmem(uint16_t addr, uint8_t value)
 	memory[addr]=value;
 }
 
-static uint8_t getaddr(int mode)
+#define ADDCYCLES(x)
+
+static uint8_t getaddr(int mode, unsigned &pc)
 {
   uint16_t ad,ad2;  
   switch(mode)
   {
     case imp:
-      cycles+=2;
+      ADDCYCLES(2);
       return 0;
     case imm:
-      cycles+=2;
+      ADDCYCLES(2);
       return getmem(pc++);
     case abs:
-      cycles+=4;
+      ADDCYCLES(4);
       ad=getmem(pc++);
       ad|=getmem(pc++)<<8;
       return getmem(ad);
     case absx:
-      cycles+=4;
+      ADDCYCLES(4);
       ad=getmem(pc++);
       ad|=256*getmem(pc++);
       ad2=ad+x;
       if ((ad2&0xff00)!=(ad&0xff00))
-        cycles++;
+        ADDCYCLES(1);
       return getmem(ad2);
     case absy:
-      cycles+=4;
+      ADDCYCLES(4);
       ad=getmem(pc++);
       ad|=256*getmem(pc++);
       ad2=ad+y;
       if ((ad2&0xff00)!=(ad&0xff00))
-        cycles++;
+        ADDCYCLES(1);
       return getmem(ad2);
     case zp:
-      cycles+=3;
+      ADDCYCLES(3);
       ad=getmem(pc++);
       return getmem(ad);
     case zpx:
-      cycles+=4;
+      ADDCYCLES(4);
       ad=getmem(pc++);
       ad+=x;
       return getmem(ad&0xff);
     case zpy:
-      cycles+=4;
+      ADDCYCLES(4);
       ad=getmem(pc++);
       ad+=y;
       return getmem(ad&0xff);
     case indx:
-      cycles+=6;
+      ADDCYCLES(6);
       ad=getmem(pc++);
       ad+=x;
       ad2=getmem(ad&0xff);
@@ -189,49 +199,49 @@ static uint8_t getaddr(int mode)
       ad2|=getmem(ad&0xff)<<8;
       return getmem(ad2);
     case indy:
-      cycles+=5;
+      ADDCYCLES(5);
       ad=getmem(pc++);
       ad2=getmem(ad);
       ad2|=getmem((ad+1)&0xff)<<8;
       ad=ad2+y;
       if ((ad2&0xff00)!=(ad&0xff00))
-        cycles++;
+        ADDCYCLES(1);
       return getmem(ad);
     case acc:
-      cycles+=2;
+      ADDCYCLES(2);
       return a;
   }  
   return 0;
 }
 
 
-static void setaddr(int mode, uint8_t val)
+static void setaddr(int mode, unsigned val, unsigned &pc)
 {
-  uint16_t ad,ad2;
+  unsigned ad,ad2;
   switch(mode)
   {
     case abs:
-      cycles+=2;
+      ADDCYCLES(2);
       ad=getmem(pc-2);
       ad|=256*getmem(pc-1);
       setmem(ad,val);
       return;
     case absx:
-      cycles+=3;
+      ADDCYCLES(3);
       ad=getmem(pc-2);
       ad|=256*getmem(pc-1);
-      ad2=ad+x;
+      ad2=(ad+x)&0xffff;
       if ((ad2&0xff00)!=(ad&0xff00))
         cycles--;
       setmem(ad2,val);
       return;
     case zp:
-      cycles+=2;
+      ADDCYCLES(2);
       ad=getmem(pc-1);
       setmem(ad,val);
       return;
     case zpx:
-      cycles+=2;
+      ADDCYCLES(2);
       ad=getmem(pc-1);
       ad+=x;
       setmem(ad&0xff,val);
@@ -243,52 +253,52 @@ static void setaddr(int mode, uint8_t val)
 }
 
 
-static void putaddr(int mode, uint8_t val)
+static void putaddr(int mode, unsigned val)
 {
   uint16_t ad,ad2;
   switch(mode)
   {
     case abs:
-      cycles+=4;
+      ADDCYCLES(4);
       ad=getmem(pc++);
       ad|=getmem(pc++)<<8;
       setmem(ad,val);
       return;
     case absx:
-      cycles+=4;
+      ADDCYCLES(4);
       ad=getmem(pc++);
       ad|=getmem(pc++)<<8;
       ad2=ad+x;
       setmem(ad2,val);
       return;
     case absy:
-      cycles+=4;
+      ADDCYCLES(4);
       ad=getmem(pc++);
       ad|=getmem(pc++)<<8;
       ad2=ad+y;
       if ((ad2&0xff00)!=(ad&0xff00))
-        cycles++;
+        ADDCYCLES(1);
       setmem(ad2,val);
       return;
     case zp:
-      cycles+=3;
+      ADDCYCLES(3);
       ad=getmem(pc++);
       setmem(ad,val);
       return;
     case zpx:
-      cycles+=4;
+      ADDCYCLES(4);
       ad=getmem(pc++);
       ad+=x;
       setmem(ad&0xff,val);
       return;
     case zpy:
-      cycles+=4;
+      ADDCYCLES(4);
       ad=getmem(pc++);
       ad+=y;
       setmem(ad&0xff,val);
       return;
     case indx:
-      cycles+=6;
+      ADDCYCLES(6);
       ad=getmem(pc++);
       ad+=x;
       ad2=getmem(ad&0xff);
@@ -297,7 +307,7 @@ static void putaddr(int mode, uint8_t val)
       setmem(ad2,val);
       return;
     case indy:
-      cycles+=5;
+      ADDCYCLES(5);
       ad=getmem(pc++);
       ad2=getmem(ad);
       ad2|=getmem((ad+1)&0xff)<<8;
@@ -305,7 +315,7 @@ static void putaddr(int mode, uint8_t val)
       setmem(ad,val);
       return;
     case acc:
-      cycles+=2;
+      ADDCYCLES(2);
       a=val;
       return;
   }
@@ -314,71 +324,75 @@ static void putaddr(int mode, uint8_t val)
 
 static inline void setflags(int flag, int cond)
 {
-  // cond?p|=flag:p&=~flag;
   if (cond) p|=flag;
   else p&=~flag;
 }
 
 
-static inline void push(uint8_t val)
+static inline void push(unsigned val, unsigned &s)
 {
   setmem(0x100+s,val);
   if (s) s--;
 }
 
-static inline uint8_t pop()
+static inline unsigned pop(unsigned &s)
 {
   if (s<0xff) s++;
   return getmem(0x100+s);
 }
 
-static void branch(int flag)
+static void branch(int flag, unsigned &pc, unsigned &imm)
 {
-  signed char dist;
-  dist=(signed char)getaddr(imm);
-  wval=pc+dist;
-  if (flag)
-  {
-    cycles+=((pc&0x100)!=(wval&0x100))?2:1;
-    pc=wval;
-  }
+	signed dist;
+	unsigned wval;
+	dist=(signed)getaddr(imm);
+	wval=pc+dist;
+	if (flag)
+	{
+		ADDCYCLES(((pc&0x100)!=(wval&0x100))?2:1);
+		pc=wval;
+	}
 }
 
 // ----------------------------------------------------- ffentliche Routinen
 
-static void cpuReset()
+static void cpuReset(c64regs &cr)
 {
-  a=x=y=0;
-  p=0;
-  s=255;
-  pc=getaddr(0xfffc);
+  cr.a=cr.x=cr.y=0;
+  cr.p=0;
+  cr.s=255;
+  cr.pc=getaddr(0xfffc);
 }
 
-static void cpuResetTo(uint16_t npc)
+static void cpuResetTo(c64regs &cr, unsigned npc)
 {
-  a=0;
-  x=0;
-  y=0;
-  p=0;
-  s=255;
-  pc=npc;
+  cr.a=0;
+  cr.x=0;
+  cr.y=0;
+  cr.p=0;
+  cr.s=255;
+  cr.pc=npc;
 }
 
 #define OP(x...)
 //do { fprintf(stderr,x); fprintf(stderr,"\n"); } while(0)
 
-static int cpuParse()
+static int cpuParse(const c64regs &cr_in)
 {
-	uint8_t opc;
+	unsigned opc;
+    unsigned wval,bval;
 	int cmd, addr, c;
-	cycles=0;
+	c64regs cr(cr_in);
+
+	//cycles=0;
+	RESETCYCLES();
 
 	//#ifdef TRACE
 	//  cpuStatus();
 	//  if (opcodes[getmem(pc)]==xxx) getch();
 	//#endif
 
-	opc=getmem(pc++);
+	opc=getmem(cr.pc++);
 	cmd=opcodes[opc];
 	addr=modes[opc];
 //	fprintf(stderr,"$%04x [%02x]: ", pc-1, opc);
@@ -386,60 +400,60 @@ static int cpuParse()
 	{
 	case OPadc:
 		OP("adc");
-		wval=(uint16_t)a+getaddr(addr)+((p&FLAG_C)?1:0);
+		wval=(uint16_t)a+getaddr(addr)+((cr.p&FLAG_C)?1:0);
 		setflags(FLAG_C, wval&0x100);
-		a=(uint8_t)wval;
-		setflags(FLAG_Z, !a);
-		setflags(FLAG_N, a&0x80);
-		setflags(FLAG_V, (!!(p&FLAG_C)) ^ (!!(p&FLAG_N)));
+		cr.a=(uint8_t)wval;
+		setflags(FLAG_Z, !cr.a);
+		setflags(FLAG_N, cr.a&0x80);
+		setflags(FLAG_V, (!!(cr.p&FLAG_C)) ^ (!!(cr.p&FLAG_N)));
 		break;
 	case OPand:
 		OP("and");
 		bval=getaddr(addr);
-		a&=bval;
-		setflags(FLAG_Z, !a);
-		setflags(FLAG_N, a&0x80);
+		cr.a&=bval;
+		setflags(FLAG_Z, !cr.a);
+		setflags(FLAG_N, cr.a&0x80);
 		break;
 	case OPasl:
 		OP("asl");
 		wval=getaddr(addr);
 		wval<<=1;
-		setaddr(addr,(uint8_t)wval);
-		setflags(FLAG_Z,!wval);
-		setflags(FLAG_N,wval&0x80);
-		setflags(FLAG_C,wval&0x100);
+		setaddr(addr,wval&0xff);
+		setflags(FLAG_Z,!cr.wval);
+		setflags(FLAG_N,cr.wval&0x80);
+		setflags(FLAG_C,cr.wval&0x100);
 		break;
 	case OPbcc:
 		OP("bcc");
-		branch(!(p&FLAG_C));
+		branch(!(cr.p&FLAG_C));
 		break;
 	case OPbcs:
 		OP("bcs");
-		branch(p&FLAG_C);
+		branch(cr.p&FLAG_C);
 		break;
 	case OPbne:
 		OP("bne");
-		branch(!(p&FLAG_Z));
+		branch(!(cr.p&FLAG_Z));
 		break;
 	case OPbeq:
 		OP("beq");
-		branch(p&FLAG_Z);
+		branch(cr.p&FLAG_Z);
 		break;
 	case OPbpl:
 		OP("bpl");
-		branch(!(p&FLAG_N));
+		branch(!(cr.p&FLAG_N));
 		break;
 	case OPbmi:
 		OP("bmi");
-		branch(p&FLAG_N);
+		branch(cr.p&FLAG_N);
 		break;
 	case OPbvc:
 		OP("bvc");
-		branch(!(p&FLAG_V));
+		branch(!(cr.p&FLAG_V));
 		break;
 	case OPbvs:
 		OP("bvs");
-		branch(p&FLAG_V);
+		branch(cr.p&FLAG_V);
 		break;
 	case OPbit:
 		OP("bit");
@@ -455,26 +469,26 @@ static int cpuParse()
 		push(p);
 		setflags(FLAG_B,1);
 		pc=getmem(0xfffe);
-		cycles+=7;
+		ADDCYCLES(7;
 		break;
 	case OPclc:
 		OP("clc");
-		cycles+=2;
+		ADDCYCLES(2;
 		setflags(FLAG_C,0);
 		break;
 	case OPcld:
 		OP("cld");
-		cycles+=2;
+		ADDCYCLES(2;
 		setflags(FLAG_D,0);
 		break;
 	case OPcli:
 		OP("cli");
-		cycles+=2;
+		ADDCYCLES(2;
 		setflags(FLAG_I,0);
 		break;
 	case OPclv:
 		OP("clv");
-		cycles+=2;
+		ADDCYCLES(2;
 		setflags(FLAG_V,0);
 		break;
 	case OPcmp:
@@ -511,14 +525,14 @@ static int cpuParse()
 		break;
 	case OPdex:
 		OP("dex");
-		cycles+=2;
+		ADDCYCLES(2;
 		x--;
 		setflags(FLAG_Z,!x);
 		setflags(FLAG_N,x&0x80);
 		break;
 	case OPdey:
 		OP("dey");
-		cycles+=2;
+		ADDCYCLES(2;
 		y--;
 		setflags(FLAG_Z,!y);
 		setflags(FLAG_N,y&0x80);
@@ -540,20 +554,20 @@ static int cpuParse()
 		break;
 	case OPinx:
 		OP("inx");
-		cycles+=2;
+		ADDCYCLES(2;
 		x++;
 		setflags(FLAG_Z,!x);
 		setflags(FLAG_N,x&0x80);
 		break;
 	case OPiny:
 		OP("iny");
-		cycles+=2;
+		ADDCYCLES(2;
 		y++;
 		setflags(FLAG_Z,!y);
 		setflags(FLAG_N,y&0x80);
 		break;
 	case OPjmp:
-		cycles+=3;
+		ADDCYCLES(3;
 		wval=getmem(pc++);
 		wval|=256*getmem(pc++);
 		switch (addr)
@@ -566,13 +580,13 @@ static int cpuParse()
 			pc=getmem(wval);
 			pc|=256*getmem(wval+1);
 			OP("jmpr $%04x",pc);
-			cycles+=2;
+			ADDCYCLES(2;
 			break;
 		}
 		break;
 	case OPjsr:
 		OP("jsr");
-		cycles+=6;
+		ADDCYCLES(6;
 		push((pc+2));
 		push((pc+2)>>8);
 		wval=getmem(pc++);
@@ -609,7 +623,7 @@ static int cpuParse()
 		break;
 	case OPnop:
 		OP("nop");
-		cycles+=2;
+		ADDCYCLES(2;
 		break;
 	case OPora:
 		OP("ora");
@@ -621,24 +635,24 @@ static int cpuParse()
 	case OPpha:
 		OP("pha");
 		push(a);
-		cycles+=3;
+		ADDCYCLES(3;
 		break;
 	case OPphp:
 		OP("php");
 		push(p);
-		cycles+=3;
+		ADDCYCLES(3;
 		break;
 	case OPpla:
 		OP("pla");
 		a=pop();
 		setflags(FLAG_Z,!a);
 		setflags(FLAG_N,a&0x80);
-		cycles+=4;
+		ADDCYCLES(4;
 		break;
 	case OPplp:
 		OP("plp");
 		p=pop();
-		cycles+=4;
+		ADDCYCLES(4;
 		break;
 	case OProl:
 		OP("rol");
@@ -677,7 +691,7 @@ static int cpuParse()
 		wval=256*pop();
 		wval|=pop();
 		pc=wval;
-		cycles+=6;
+		ADDCYCLES(6;
 		break;
 	case OPsbc:
 		OP("sbc");
@@ -691,17 +705,17 @@ static int cpuParse()
 		break;
 	case OPsec:
 		OP("sec");
-		cycles+=2;
+		ADDCYCLES(2;
 		setflags(FLAG_C,1);
 		break;
 	case OPsed:
 		OP("sec");
-		cycles+=2;
+		ADDCYCLES(2;
 		setflags(FLAG_D,1);
 		break;
 	case OPsei:
 		OP("sei");
-		cycles+=2;
+		ADDCYCLES(2;
 		setflags(FLAG_I,1);
 		break;
 	case OPsta:
@@ -718,40 +732,40 @@ static int cpuParse()
 		break;
 	case OPtax:
 		OP("tax");
-		cycles+=2;
+		ADDCYCLES(2;
 		x=a;
 		setflags(FLAG_Z, !x);
 		setflags(FLAG_N, x&0x80);
 		break;
 	case OPtay:
 		OP("tay");
-		cycles+=2;
+		ADDCYCLES(2;
 		y=a;
 		setflags(FLAG_Z, !y);
 		setflags(FLAG_N, y&0x80);
 		break;
 	case OPtsx:
 		OP("tsx");
-		cycles+=2;
+		ADDCYCLES(2;
 		x=s;
 		setflags(FLAG_Z, !x);
 		setflags(FLAG_N, x&0x80);
 		break;
 	case OPtxa:
 		OP("txa");
-		cycles+=2;
+		ADDCYCLES(2;
 		a=x;
 		setflags(FLAG_Z, !a);
 		setflags(FLAG_N, a&0x80);
 		break;
 	case OPtxs:
 		OP("txs");
-		cycles+=2;
+		ADDCYCLES(2;
 		s=x;
 		break;
 	case OPtya:
 		OP("tya");
-		cycles+=2;
+		ADDCYCLES(2;
 		a=y;
 		setflags(FLAG_Z, !a);
 		setflags(FLAG_N, a&0x80);
@@ -761,22 +775,22 @@ static int cpuParse()
 	return cycles;
 }
 
-int cpuJSR(uint16_t npc, uint8_t na)
+int cpuJSR(c64regs &cr, unsigned npc, unsigned na)
 {
   int ccl;
   
-  a=na;
-  x=0;
-  y=0;
-  p=0;
-  s=255;
-  pc=npc;
-  push(0);
-  push(0);
-  ccl=0;    
-  while (pc)
+  cr.a=na;
+  cr.x=0;
+  cr.y=0;
+  cr.p=0;
+  cr.s=255;
+  cr.pc=npc;
+  push(cr,0);
+  push(cr,0);
+  ccl=0;
+  while (cr.pc)
   {
-    ccl+=cpuParse();
+    ccl+=cpuParse(cr);
   }  
   return ccl;
 }

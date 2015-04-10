@@ -320,8 +320,6 @@ void stage4_init()
 
 void stage3_init()
 {
-	volatile unsigned char *memory=(volatile unsigned char*)0x1010;
-
 	VGAZX.pctext("But you can get some other nice"
 				 "\033G\x00\x01"
 				 "effects, with small CPU effort !"

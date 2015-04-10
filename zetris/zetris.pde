@@ -27,7 +27,7 @@ SmallFSFile ymaudiofile;
 SmallFSFile pokeyaudiofile;
 
 #define AUDIOPIN WING_A_15
-#define AUDIOPINEXTRA WING_A_13
+#define AUDIOPINEXTRA WING_A_14
 
 #define BUTTON_DOWN 26 /* WING_B_10 */
 #define BUTTON_ROTATE 25 /* WING_B_9 */
@@ -435,11 +435,16 @@ void clear_area()
 void blitImage(const char *name)
 {
 	VGA.blitStreamInit(0, 0, VGA.getHSize());
-
-	SmallFSFile entry = SmallFS.open(name);
-	if (entry.valid()) {
-		entry.readCallback( entry.size(), &VGA.blitStream, (void*)&VGA );
-	}
+	do {
+		SmallFSFile entry = SmallFS.open(name);
+		if (entry.valid()) {
+			entry.readCallback( entry.size(), &VGA.blitStream, (void*)&VGA );
+            return;
+		} else {
+			Serial.print("Cannot open ");
+			Serial.println(name);
+		}
+	} while (1);
 }
 
 void entryImage(const char *name)
@@ -458,12 +463,12 @@ void setup()
 
 	pinMode(AUDIOPIN,OUTPUT);
 	digitalWrite(AUDIOPIN,HIGH);
-	outputPinForFunction(AUDIOPIN, 14);
+	outputPinForFunction(AUDIOPIN, 8);
 	pinModePPS(AUDIOPIN, HIGH);
 
 #ifdef AUDIOPINEXTRA
 	pinMode(AUDIOPINEXTRA,OUTPUT);
-	outputPinForFunction(AUDIOPINEXTRA, 14);
+	outputPinForFunction(AUDIOPINEXTRA, 8);
 	pinModePPS(AUDIOPINEXTRA, HIGH);
 #endif
 

@@ -100,7 +100,7 @@ void draw_player()
 		VGAZX.putPixel(x,4 + 23*8);
 		VGAZX.putPixel(x,5 + 23*8);
 		VGAZX.putPixel(x,6 + 23*8);
-        VGAZX.putPixel(x,7 + 23*8);
+                VGAZX.putPixel(x,7 + 23*8);
 	}
 }
 
@@ -250,10 +250,10 @@ void clear_block(int x, int y)
 
 	Serial.print("Clearing block at ");
 	Serial.print(x);
-    Serial.print(",");
+        Serial.print(",");
 	Serial.print(y);
 	Serial.print(" type ");
-    Serial.println(screenblocks[boffset] & BLOCK_TYPE_MASK);
+        Serial.println(screenblocks[boffset] & BLOCK_TYPE_MASK);
 
 	VGAZX.pallete()[boffset] = 0x7;
 	screenblocks[boffset] = BLOCK_SOLID;
@@ -268,11 +268,12 @@ void collision(int x, int y)
 	unsigned sx, soffset,type;
 
 	Serial.print("Collision at ");
-	Serial.print(x);
-    Serial.print(",");
-	Serial.println(y);
+        Serial.print(x);
+        Serial.print(",");
+        Serial.println(y);
+
 	if (y==23)
-        return;
+            return;
 
 	if ((screenblocks[boffset] & BLOCK_TYPE_MASK) != BLOCK_SOLID) {
 		sx = x;
@@ -284,7 +285,7 @@ void collision(int x, int y)
 			clear_block(sx,y);
 			if (type==BLOCK_RIGHT)
 				break;
-            soffset++, sx++;
+                        soffset++, sx++;
 		} while (1);
 
 		sx = x;
@@ -296,7 +297,7 @@ void collision(int x, int y)
 			clear_block(sx,y);
 			if (type==BLOCK_LEFT)
 				break;
-            soffset--, sx--;
+                        soffset--, sx--;
 		} while (1);
 	}
 }
@@ -323,7 +324,7 @@ void ball_demo()
 
 	make_ball(rbx,rby);
 	draw_ball(rbx,rby,true);
-    draw_player();
+        draw_player();
 	wait_up();
 	draw_ball(rbx,rby,true);
 
@@ -460,14 +461,14 @@ void update_player()
 	if (digitalRead(LEFT_PIN)) {
 		if (player_x < (VGA_COLUMNS*8)-PLAYER_SIZE_PIX) {
 			player_x ++;
-            player_moved=1;
-		}
+                        player_moved=1;
+                }
 
 	}
 	if (digitalRead(RIGHT_PIN)) {
 		if (player_x!=0) {
 			player_x --;
-            player_moved=1;
+                        player_moved=1;
 		}
 	}
 
@@ -483,7 +484,7 @@ void setup()
 	Serial.begin(115200);
 	pinMode(JUMP_PIN,INPUT);
 	pinMode(LEFT_PIN,INPUT);
-    pinMode(RIGHT_PIN,INPUT);
+        pinMode(RIGHT_PIN,INPUT);
 	SmallFS.begin();
 	SmallFSFile map = SmallFS.open("map");
 	if (map.valid()) {

@@ -41,7 +41,7 @@
 #include <SmallFS.h>
 
 // Define this is you use the ZPUino simulator
-//#define SIMULATION
+#define SIMULATION
 
 #define STATIC static
 
